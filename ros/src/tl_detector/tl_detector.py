@@ -13,7 +13,7 @@ import cv2
 import yaml
 
 STATE_COUNT_THRESHOLD = 3
-IMAGE_CLASSIFICATION_THRESHOLD = 20
+IMAGE_CLASSIFICATION_THRESHOLD = 3
 USE_TRAFFIC_LIGHT_CLASSIFIER = 0
 
 class TLDetector(object):
@@ -91,7 +91,7 @@ class TLDetector(object):
             return # as we just started getting camera image
         elif self.sample_time < 0.3:
             return
-        rospy.logwarn("sample time is {:f}" .format(self.sample_time))
+        #rospy.logwarn("sample time is {:f}" .format(self.sample_time))
         self.sample_time = 0.
 
         self.image_count += 1
