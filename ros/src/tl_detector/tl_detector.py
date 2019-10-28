@@ -13,6 +13,7 @@ import cv2
 import yaml
 
 STATE_COUNT_THRESHOLD = 3
+IMAGE_CLASSIFICATION_THRESHOLD = 20
 USE_TRAFFIC_LIGHT_CLASSIFIER = 0
 
 class TLDetector(object):
@@ -52,7 +53,10 @@ class TLDetector(object):
         self.state_count = 0
         self.waypoints_2d = None
         self.waypoints_tree = None
-
+        self.image_count = 0
+        self.last_time = rospy.get_time()
+        self.sample_time = 0.
+        
         rospy.spin()
 
     def pose_cb(self, msg):
@@ -79,6 +83,22 @@ class TLDetector(object):
             msg (Image): image from car-mounted camera
 
         """
+        curr_time = rospy.get_time()
+        self.sample_time += (curr_time - self.last_time)
+        self.last_time = curr_time
+        if self.sample_time > 1:
+            self.sample_time = 0
+            return # as we just started getting camera image
+        elif self.sample_time < 0.3:
+            return
+        rospy.logwarn("sample time is {:f}" .format(self.sample_time))
+        self.sample_time = 0.
+
+        self.image_count += 1
+        if(self.image_count <= IMAGE_CLASSIFICATION_THRESHOLD):
+            return
+        
+        self.image_count = 0 # reset the count
         #rospy.logwarn("image_cb")
         self.has_image = True
         self.camera_image = msg
@@ -128,7 +148,7 @@ class TLDetector(object):
         """
         if USE_TRAFFIC_LIGHT_CLASSIFIER == 0:
             #rospy.logwarn("Traffic light color is: {}" .format(light.state))
-            return light.state # for testing purpose only 
+            return light.state # for testing purpose only (once classifier remove this line)
         else:
             if(not self.has_image):
                 self.prev_light_loc = None
