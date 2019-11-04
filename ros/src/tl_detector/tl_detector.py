@@ -15,8 +15,8 @@ import yaml
 
 STATE_COUNT_THRESHOLD = 3
 IMAGE_CLASSIFICATION_THRESHOLD = 3
-USE_TRAFFIC_LIGHT_CLASSIFIER = 0
-PUBLISH_TL_WITHOUT_CAMERA = 1
+USE_TRAFFIC_LIGHT_CLASSIFIER = 1 #if using classifier = 1, otherwise 0
+PUBLISH_TL_WITHOUT_CAMERA = 0 #if not using camera for TL = 1, otherwise 0 for normal operation
 
 class TLDetector(object):
     def __init__(self):
@@ -64,7 +64,7 @@ class TLDetector(object):
     def pose_cb(self, msg):
         #rospy.logwarn("pose_cb")
         self.pose = msg
-        if PUBLISH_TL_WITHOUT_CAMERA == 1:
+        if (PUBLISH_TL_WITHOUT_CAMERA == 1) and (not self.waypoints_tree):
             light_wp, state = self.process_traffic_lights()
             #rospy.logwarn("Traffic light state {}" .format(state))
             if self.state != state:
