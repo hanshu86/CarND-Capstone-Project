@@ -21,11 +21,24 @@ PUBLISH_TL_WITHOUT_CAMERA = 0 #if not using camera for TL = 1, otherwise 0 for n
 class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
+        rospy.logwarn('Initializing TL_Detector - 001')
 
         self.pose = None
         self.waypoints = None
         self.camera_image = None
         self.lights = []
+        self.state = TrafficLight.UNKNOWN
+        self.last_state = TrafficLight.UNKNOWN
+        self.last_wp = -1
+        self.state_count = 0
+        self.waypoints_2d = None
+        self.waypoints_2d_init = False
+        self.waypoints_tree = None
+        self.image_count = 0
+        self.last_time = rospy.get_time()
+        self.sample_time = 0.
+        
+        rospy.logwarn('Initializing TL_Detector - 002')
 
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
@@ -44,20 +57,13 @@ class TLDetector(object):
         self.config = yaml.load(config_string)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
+        rospy.logwarn('Initializing TL_Detector - 003')
 
         self.bridge = CvBridge()
         self.light_classifier = TLClassifier()
         self.listener = tf.TransformListener()
+        rospy.logwarn('Initializing TL_Detector - 004')
 
-        self.state = TrafficLight.UNKNOWN
-        self.last_state = TrafficLight.UNKNOWN
-        self.last_wp = -1
-        self.state_count = 0
-        self.waypoints_2d = None
-        self.waypoints_tree = None
-        self.image_count = 0
-        self.last_time = rospy.get_time()
-        self.sample_time = 0.
 
         rospy.spin()
 
@@ -81,11 +87,13 @@ class TLDetector(object):
 
     def waypoints_cb(self, waypoints):
         #rospy.logwarn("waypoints_cb")
+        rospy.logwarn('Initializing TL_Detector - 005')
         self.waypoints = waypoints
-        if not self.waypoints_2d:
+        if not self.waypoints_2d_init:
             self.waypoints_2d = [[waypoint.pose.pose.position.x, waypoint.pose.pose.position.y] for waypoint in
                                  waypoints.waypoints]
             self.waypoints_tree = KDTree(self.waypoints_2d)
+            self.waypoints_2d_init = True
 
     def traffic_cb(self, msg):
         #rospy.logwarn("traffic_cb")

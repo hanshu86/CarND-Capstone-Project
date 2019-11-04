@@ -3,6 +3,7 @@ import cv2
 import os
 import tensorflow as tf
 import numpy as np
+import rospy
 
 class TLClassifier(object):
     def __init__(self):
@@ -49,9 +50,11 @@ class TLClassifier(object):
             """
             #TODO implement light color prediction
             box = self.locate_lights(image)
-            if box != -1:
+            if box is not None:
                 self.img_ctr +=1
-                cv2.imwrite(self.working_directory + "/traffic_sign_images/Test_" + i + ".jpg", box) 
+                
+                cv2.imwrite(self.working_directory + "/traffic_sign_images/Test_" + str(self.img_ctr) + ".jpg", box) 
+                rospy.logerr('Image counter = %d', self.img_ctr)
 
             # Add classification code here
 
@@ -66,21 +69,31 @@ class TLClassifier(object):
         tf_input_image = np.expand_dims(image, axis=0)
 
         
-        with self.detect.as_default():
-            (boxes, scores, classes, num_detections) = self.detect.run([self.boxes, self.scores, self.classes, self.num_detections],
-                                                                feed_dict={image_tensor: tf_input_image})
+        with self.detect_tl.as_default():
+            (boxes, scores, classes, num_detections) = self.detect_session.run([self.boxes, self.scores, self.classes, self.num_detections],
+                                                                feed_dict={self.image_tensor: tf_input_image})
 
             boxes=np.squeeze(boxes)         # remove single dimension entries
-            scores=np.squeeze(scores)
+            #rospy.logwarn('shape of scores BEFORE squeeze = ')
+            #rospy.logwarn(scores.shape)
+            #rospy.logwarn('shape of Boxes BEFORE squeeze = ')#, boxes.shape)
+            #rospy.logwarn(boxes.shape)
+            #scores=np.squeeze(scores)
             classes=np.squeeze(classes)#.astype(np.int32)
             num_detections = np.squeeze(num_detections)
+            
+            #rospy.logwarn('shape of scores AFTER squeeze = ')
+            #rospy.logwarn(scores.shape)
+            rospy.logwarn('shape of Boxes AFTER squeeze = ')#, boxes.shape)
+            rospy.logwarn(boxes.shape)
             
             tl_box_image = None
             detection_score = 0.5
             
             for i,image_class in enumerate(classes.tolist()):
-                if image_class == 10 and socres[i] >=detection_score:               # 10 = "traffic light" 
-                    return boxes[i]
+                if image_class == 10:# and socres[i] >=detection_score:               # 10 = "traffic light" 
+                        rospy.logwarn('Traffic image found!')#, boxes.shape)
+                        return boxes[i]
                 else:
                     pass
                 
