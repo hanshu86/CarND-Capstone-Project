@@ -118,11 +118,9 @@ class TLDetector(object):
         #rospy.logwarn("sample time is {:f}" .format(self.sample_time))
         self.sample_time = 0.
 
-        self.image_count += 1
-        if(self.image_count <= IMAGE_CLASSIFICATION_THRESHOLD):
-            return
+        
 
-        self.image_count = 0 # reset the count
+        
         #rospy.logwarn("image_cb")
         self.has_image = True
         self.camera_image = msg
@@ -133,17 +131,18 @@ class TLDetector(object):
         of times till we start using it. Otherwise the previous stable state is
         used.
         '''
-        if self.state != state:
-            self.state_count = 0
-            self.state = state
-        elif self.state_count >= STATE_COUNT_THRESHOLD:
-            self.last_state = self.state
-            light_wp = light_wp if state == TrafficLight.RED else -1
-            self.last_wp = light_wp
-            self.upcoming_red_light_pub.publish(Int32(light_wp))
-        else:
-            self.upcoming_red_light_pub.publish(Int32(self.last_wp))
-        self.state_count += 1
+        if state is not None:
+            if self.state != state:
+                self.state_count = 0
+                self.state = state
+            elif self.state_count >= STATE_COUNT_THRESHOLD:
+                self.last_state = self.state
+                light_wp = light_wp if state == TrafficLight.RED else -1
+                self.last_wp = light_wp
+                self.upcoming_red_light_pub.publish(Int32(light_wp))
+            else:
+                self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+            self.state_count += 1
 
     def get_closest_waypoint(self, x,y):
         """Identifies the closest path waypoint to the given position
@@ -181,6 +180,10 @@ class TLDetector(object):
             cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
 
             #Get classification
+            self.image_count += 1
+            if(self.image_count <= IMAGE_CLASSIFICATION_THRESHOLD):
+                return
+            self.image_count = 0 # reset the count
             return self.light_classifier.get_classification(cv_image)
 
     def process_traffic_lights(self):

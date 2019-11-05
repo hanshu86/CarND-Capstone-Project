@@ -55,11 +55,11 @@ class TLClassifier(object):
             box = self.locate_lights(image)
             if box is not None:
                 self.img_ctr +=1
-                rospy.logwarn('box dimensions')
-                rospy.logwarn(box[0])
-                rospy.logwarn(box[1])
-                rospy.logwarn(box[2])
-                rospy.logwarn(box[3])
+                #rospy.logwarn('box dimensions')
+                #rospy.logwarn(box)
+                #rospy.logwarn(box[1])
+                #rospy.logwarn(box[2])
+                #rospy.logwarn(box[3])
                 sliced_image = cv2.resize( image[box[0]:box[2], box[1]:box[3]], (32,32) )
                 cv2.imwrite(self.working_directory + "/traffic_sign_images/Test_" + str(self.img_ctr) + ".jpg", sliced_image) 
                 rospy.logerr('Image counter = %d', self.img_ctr)
@@ -83,13 +83,13 @@ class TLClassifier(object):
 
             boxes=np.squeeze(boxes)         # remove single dimension entries
             #scores=np.squeeze(scores)
-            rospy.logwarn('scores ')
-            rospy.logwarn(scores)
+            #rospy.logwarn('scores ')
+            #rospy.logwarn(scores)
             classes=np.squeeze(classes)#.astype(np.int32)
-            rospy.logwarn('classes ')
-            rospy.logwarn(classes)
-            rospy.logwarn('sliced IMAGE shape ')
-            rospy.logwarn(image.shape)
+            #rospy.logwarn('classes ')
+            #rospy.logwarn(classes)
+            #rospy.logwarn('sliced IMAGE shape ')
+            #rospy.logwarn(image.shape)
             img_h = image.shape[0]
             img_w = image.shape[1]
             
@@ -112,32 +112,28 @@ class TLClassifier(object):
         
         
         #    tl_box_image = None
-        #    detection_score = 0.5
+            detection_score = 0.5
             
             for i,image_class in enumerate(classes.tolist()):
-                if image_class == 10:# and socres[i] >=detection_score:               # 10 = "traffic light" 
-                        rospy.logwarn('Traffic image found!')#, boxes.shape)
-                        traffic_light_img_box = self.slice_image(boxes[i],img_h,img_w)
-                        return traffic_light_img_box #boxes[i]
+                dummy = 0
+                if image_class == 10:
+                        #rospy.logwarn(scores[0][i])
+                        dummy+= scores[0][i]
+                        if dummy >= detection_score:               # 10 = "traffic light" 
+                            #rospy.logwarn('Traffic image found!')#, boxes.shape)
+                            #rospy.logwarn(dummy)
+                            traffic_light_img_box = self.slice_image(boxes[i],img_h,img_w)
+                            dummy = 0
+                            return traffic_light_img_box #boxes[i]
+                        
                 else:
                     pass
                 
-        return -1
+        return None
     
     def slice_image(self, box_dim, img_h, img_w):
         #defining sliced image corners
-        rospy.logwarn('img_dims[0]')
-        rospy.logwarn(img_h)
-        rospy.logwarn('img_dims[1]')
-        rospy.logwarn(img_w)        
-        rospy.logwarn('box_dims[0]')
-        rospy.logwarn(box_dim[0])        
-        rospy.logwarn('box_dims[2]')
-        rospy.logwarn(box_dim[2])
-        rospy.logwarn('box_dims[1]')
-        rospy.logwarn(box_dim[1])        
-        rospy.logwarn('box_dims[3]')
-        rospy.logwarn(box_dim[3])
+        
         
         c1 = box_dim[0]*img_h
         c2 = box_dim[1]*img_w
