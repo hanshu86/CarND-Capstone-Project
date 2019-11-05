@@ -5,6 +5,9 @@ import tensorflow as tf
 import numpy as np
 import rospy
 
+#from utils import label_map_util
+#from utils import visualization_utils as vis_util
+
 class TLClassifier(object):
     def __init__(self):
         #TODO load classifier
@@ -52,8 +55,13 @@ class TLClassifier(object):
             box = self.locate_lights(image)
             if box is not None:
                 self.img_ctr +=1
-                
-                cv2.imwrite(self.working_directory + "/traffic_sign_images/Test_" + str(self.img_ctr) + ".jpg", box) 
+                rospy.logwarn('box dimensions')
+                rospy.logwarn(box[0])
+                rospy.logwarn(box[1])
+                rospy.logwarn(box[2])
+                rospy.logwarn(box[3])
+                sliced_image = cv2.resize( image[box[0]:box[2], box[1]:box[3]], (32,32) )
+                cv2.imwrite(self.working_directory + "/traffic_sign_images/Test_" + str(self.img_ctr) + ".jpg", sliced_image) 
                 rospy.logerr('Image counter = %d', self.img_ctr)
 
             # Add classification code here
@@ -64,7 +72,7 @@ class TLClassifier(object):
     def locate_lights (self, image):
           # Actual detection.
         #switch from BGR to RGB
-        #image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         # Expand dimensions since the model expects images to have shape: [1, None, None, 3]
         tf_input_image = np.expand_dims(image, axis=0)
 
@@ -74,28 +82,66 @@ class TLClassifier(object):
                                                                 feed_dict={self.image_tensor: tf_input_image})
 
             boxes=np.squeeze(boxes)         # remove single dimension entries
-            #rospy.logwarn('shape of scores BEFORE squeeze = ')
-            #rospy.logwarn(scores.shape)
-            #rospy.logwarn('shape of Boxes BEFORE squeeze = ')#, boxes.shape)
-            #rospy.logwarn(boxes.shape)
             #scores=np.squeeze(scores)
+            rospy.logwarn('scores ')
+            rospy.logwarn(scores)
             classes=np.squeeze(classes)#.astype(np.int32)
-            num_detections = np.squeeze(num_detections)
+            rospy.logwarn('classes ')
+            rospy.logwarn(classes)
+            rospy.logwarn('sliced IMAGE shape ')
+            rospy.logwarn(image.shape)
+            img_h = image.shape[0]
+            img_w = image.shape[1]
             
-            #rospy.logwarn('shape of scores AFTER squeeze = ')
-            #rospy.logwarn(scores.shape)
-            rospy.logwarn('shape of Boxes AFTER squeeze = ')#, boxes.shape)
-            rospy.logwarn(boxes.shape)
-            
-            tl_box_image = None
-            detection_score = 0.5
+            #num_detections = np.squeeze(num_detections)
+
+            #rospy.logwarn('shape of Boxes AFTER squeeze = ')#, boxes.shape)
+            #rospy.logwarn(boxes.shape)
+
+        #return image
+            #vis_util.visualize_boxes_and_labels_on_image_array(
+            #    image, # tf_input_image
+            #   np.squeeze(boxes),
+            #    np.squeeze(classes).astype(np.int32),
+            #    np.squeeze(scores),
+            #    category_index,
+            #    use_normalized_coordinates=True,
+            #    line_thickness=8,
+            #    min_score_thresh=0.80)
+          
+        
+        
+        #    tl_box_image = None
+        #    detection_score = 0.5
             
             for i,image_class in enumerate(classes.tolist()):
                 if image_class == 10:# and socres[i] >=detection_score:               # 10 = "traffic light" 
                         rospy.logwarn('Traffic image found!')#, boxes.shape)
-                        return boxes[i]
+                        traffic_light_img_box = self.slice_image(boxes[i],img_h,img_w)
+                        return traffic_light_img_box #boxes[i]
                 else:
                     pass
                 
         return -1
-            
+    
+    def slice_image(self, box_dim, img_h, img_w):
+        #defining sliced image corners
+        rospy.logwarn('img_dims[0]')
+        rospy.logwarn(img_h)
+        rospy.logwarn('img_dims[1]')
+        rospy.logwarn(img_w)        
+        rospy.logwarn('box_dims[0]')
+        rospy.logwarn(box_dim[0])        
+        rospy.logwarn('box_dims[2]')
+        rospy.logwarn(box_dim[2])
+        rospy.logwarn('box_dims[1]')
+        rospy.logwarn(box_dim[1])        
+        rospy.logwarn('box_dims[3]')
+        rospy.logwarn(box_dim[3])
+        
+        c1 = box_dim[0]*img_h
+        c2 = box_dim[1]*img_w
+        c3 = box_dim[2]*img_h
+        c4 = box_dim[3]*img_w
+        box = [int(c1), int(c2), int(c3), int(c4)]
+        return np.array(box)
