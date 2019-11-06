@@ -4,6 +4,8 @@ import os
 import tensorflow as tf
 import numpy as np
 import rospy
+import keras
+from keras.models import load_model
 
 #from utils import label_map_util
 #from utils import visualization_utils as vis_util
@@ -11,15 +13,24 @@ import rospy
 class TLClassifier(object):
     def __init__(self):
         #TODO load classifier
+        
         self.state = 0
         self.img_ctr = 0
         self.working_directory = os.path.dirname(os.path.realpath(__file__))
+        keras.backend.clear_session()
+
         
         # traffic light detection
         self.detect_tl = tf.Graph()
         
         #traffic light color classification
         self.classify = tf.Graph()      #computation graph definition
+        with self.classify.as_default():
+           
+            self.model = load_model(self.working_directory + '/models/tl_classifier_trained.h5')
+            self.model.compile(loss='binary_crossentropy',
+                  optimizer='rmsprop',
+                  metrics=['accuracy'])
         
         with self.detect_tl.as_default():
             graph_def = tf.GraphDef()                                       # to read pb file (the detection model) protobuf file
@@ -63,11 +74,18 @@ class TLClassifier(object):
                 sliced_image = cv2.resize( image[box[0]:box[2], box[1]:box[3]], (32,32) )
                 cv2.imwrite(self.working_directory + "/traffic_sign_images/Test_" + str(self.img_ctr) + ".jpg", sliced_image) 
                 rospy.logerr('Image counter = %d', self.img_ctr)
+                sliced_image = np.reshape(sliced_image,[1,32,32,3])
+                with self.classify.as_default():
+                    rospy.logwarn('im in the prediction business')
+                    classes = self.model.predict_classes(sliced_image)[0]
+                    rospy.logwarn(classes)
+                    if classes == 1:
+                        return TrafficLight.RED 
 
             # Add classification code here
 
-
-            return TrafficLight.UNKNOWN
+                    else:
+                        return TrafficLight.UNKNOWN
     
     def locate_lights (self, image):
           # Actual detection.
