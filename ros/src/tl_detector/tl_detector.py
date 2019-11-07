@@ -13,8 +13,8 @@ import tf
 import cv2
 import yaml
 
-STATE_COUNT_THRESHOLD = 3
-IMAGE_CLASSIFICATION_THRESHOLD = 3
+STATE_COUNT_THRESHOLD = 2
+IMAGE_CLASSIFICATION_THRESHOLD = 1
 USE_TRAFFIC_LIGHT_CLASSIFIER = 1 #if using classifier = 1, otherwise 0
 PUBLISH_TL_WITHOUT_CAMERA = 0 #if not using camera for TL = 1, otherwise 0 for normal operation
 
@@ -37,7 +37,7 @@ class TLDetector(object):
         self.image_count = 0
         self.last_time = rospy.get_time()
         self.sample_time = 0.
-        
+
         rospy.logwarn('Initializing TL_Detector - 002')
 
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
@@ -107,6 +107,9 @@ class TLDetector(object):
             msg (Image): image from car-mounted camera
 
         """
+        """
+        We have counter based image classification criterion
+        we do not need timer based too. iTs adding delay
         curr_time = rospy.get_time()
         self.sample_time += (curr_time - self.last_time)
         self.last_time = curr_time
@@ -117,10 +120,10 @@ class TLDetector(object):
             return
         #rospy.logwarn("sample time is {:f}" .format(self.sample_time))
         self.sample_time = 0.
+        """
 
-        
 
-        
+
         #rospy.logwarn("image_cb")
         self.has_image = True
         self.camera_image = msg
@@ -213,7 +216,8 @@ class TLDetector(object):
                 # Find closest stop line waypoint index
                 d = temp_wp_idx - car_wp_idx
                 #rospy.logwarn("Info: {} {}" .format(d, diff))
-                if d >= 0 and d < diff:
+                #TODO: Try using different value in place of diff may be 50??
+                if d >= 0 and d < 75:#diff:
                     diff = d
                     closest_light = light
                     line_wp_idx = temp_wp_idx
