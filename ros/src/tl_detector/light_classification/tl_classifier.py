@@ -72,11 +72,11 @@ class TLClassifier(object):
                 #rospy.logwarn(box[2])
                 #rospy.logwarn(box[3])
                 sliced_image = cv2.resize( image[box[0]:box[2], box[1]:box[3]], (32,32) )
-                cv2.imwrite(self.working_directory + "/traffic_sign_images/Test_" + str(self.img_ctr) + ".jpg", sliced_image) 
-                rospy.logerr('Image counter = %d', self.img_ctr)
+                #cv2.imwrite(self.working_directory + "/traffic_sign_images/Test_" + str(self.img_ctr) + ".jpg", sliced_image) 
+                #rospy.logerr('Image counter = %d', self.img_ctr)
                 sliced_image = np.reshape(sliced_image,[1,32,32,3])
                 with self.classify.as_default():
-                    rospy.logwarn('im in the prediction business')
+                    #rospy.logwarn('im in the prediction business')
                     classes = self.model.predict_classes(sliced_image)[0]
                     rospy.logwarn(classes)
                     if classes == 1:
