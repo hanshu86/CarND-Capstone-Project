@@ -13,19 +13,32 @@ import tf
 import cv2
 import yaml
 
-STATE_COUNT_THRESHOLD = 3
-IMAGE_CLASSIFICATION_THRESHOLD = 3
-USE_TRAFFIC_LIGHT_CLASSIFIER = 0
-PUBLISH_TL_WITHOUT_CAMERA = 1
+STATE_COUNT_THRESHOLD = 2
+IMAGE_CLASSIFICATION_THRESHOLD = 1
+USE_TRAFFIC_LIGHT_CLASSIFIER = 1 #if using classifier = 1, otherwise 0
+PUBLISH_TL_WITHOUT_CAMERA = 0 #if not using camera for TL = 1, otherwise 0 for normal operation
 
 class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
+        rospy.logwarn('Initializing TL_Detector - 001')
 
         self.pose = None
         self.waypoints = None
         self.camera_image = None
         self.lights = []
+        self.state = TrafficLight.UNKNOWN
+        self.last_state = TrafficLight.UNKNOWN
+        self.last_wp = -1
+        self.state_count = 0
+        self.waypoints_2d = None
+        self.waypoints_2d_init = False
+        self.waypoints_tree = None
+        self.image_count = 0
+        self.last_time = rospy.get_time()
+        self.sample_time = 0.
+
+        rospy.logwarn('Initializing TL_Detector - 002')
 
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
@@ -44,27 +57,20 @@ class TLDetector(object):
         self.config = yaml.load(config_string)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
+        rospy.logwarn('Initializing TL_Detector - 003')
 
         self.bridge = CvBridge()
         self.light_classifier = TLClassifier()
         self.listener = tf.TransformListener()
+        rospy.logwarn('Initializing TL_Detector - 004')
 
-        self.state = TrafficLight.UNKNOWN
-        self.last_state = TrafficLight.UNKNOWN
-        self.last_wp = -1
-        self.state_count = 0
-        self.waypoints_2d = None
-        self.waypoints_tree = None
-        self.image_count = 0
-        self.last_time = rospy.get_time()
-        self.sample_time = 0.
 
         rospy.spin()
 
     def pose_cb(self, msg):
         #rospy.logwarn("pose_cb")
         self.pose = msg
-        if PUBLISH_TL_WITHOUT_CAMERA == 1:
+        if (PUBLISH_TL_WITHOUT_CAMERA == 1) and (not self.waypoints_tree):
             light_wp, state = self.process_traffic_lights()
             #rospy.logwarn("Traffic light state {}" .format(state))
             if self.state != state:
@@ -81,11 +87,13 @@ class TLDetector(object):
 
     def waypoints_cb(self, waypoints):
         #rospy.logwarn("waypoints_cb")
+        rospy.logwarn('Initializing TL_Detector - 005')
         self.waypoints = waypoints
-        if not self.waypoints_2d:
+        if not self.waypoints_2d_init:
             self.waypoints_2d = [[waypoint.pose.pose.position.x, waypoint.pose.pose.position.y] for waypoint in
                                  waypoints.waypoints]
             self.waypoints_tree = KDTree(self.waypoints_2d)
+            self.waypoints_2d_init = True
 
     def traffic_cb(self, msg):
         #rospy.logwarn("traffic_cb")
@@ -99,6 +107,9 @@ class TLDetector(object):
             msg (Image): image from car-mounted camera
 
         """
+        """
+        We have counter based image classification criterion
+        we do not need timer based too. iTs adding delay
         curr_time = rospy.get_time()
         self.sample_time += (curr_time - self.last_time)
         self.last_time = curr_time
@@ -109,12 +120,10 @@ class TLDetector(object):
             return
         #rospy.logwarn("sample time is {:f}" .format(self.sample_time))
         self.sample_time = 0.
+        """
 
-        self.image_count += 1
-        if(self.image_count <= IMAGE_CLASSIFICATION_THRESHOLD):
-            return
 
-        self.image_count = 0 # reset the count
+
         #rospy.logwarn("image_cb")
         self.has_image = True
         self.camera_image = msg
@@ -125,17 +134,18 @@ class TLDetector(object):
         of times till we start using it. Otherwise the previous stable state is
         used.
         '''
-        if self.state != state:
-            self.state_count = 0
-            self.state = state
-        elif self.state_count >= STATE_COUNT_THRESHOLD:
-            self.last_state = self.state
-            light_wp = light_wp if state == TrafficLight.RED else -1
-            self.last_wp = light_wp
-            self.upcoming_red_light_pub.publish(Int32(light_wp))
-        else:
-            self.upcoming_red_light_pub.publish(Int32(self.last_wp))
-        self.state_count += 1
+        if state is not None:
+            if self.state != state:
+                self.state_count = 0
+                self.state = state
+            elif self.state_count >= STATE_COUNT_THRESHOLD:
+                self.last_state = self.state
+                light_wp = light_wp if state == TrafficLight.RED else -1
+                self.last_wp = light_wp
+                self.upcoming_red_light_pub.publish(Int32(light_wp))
+            else:
+                self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+            self.state_count += 1
 
     def get_closest_waypoint(self, x,y):
         """Identifies the closest path waypoint to the given position
@@ -173,6 +183,10 @@ class TLDetector(object):
             cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
 
             #Get classification
+            self.image_count += 1
+            if(self.image_count <= IMAGE_CLASSIFICATION_THRESHOLD):
+                return
+            self.image_count = 0 # reset the count
             return self.light_classifier.get_classification(cv_image)
 
     def process_traffic_lights(self):
@@ -202,7 +216,8 @@ class TLDetector(object):
                 # Find closest stop line waypoint index
                 d = temp_wp_idx - car_wp_idx
                 #rospy.logwarn("Info: {} {}" .format(d, diff))
-                if d >= 0 and d < diff:
+                #TODO: Try using different value in place of diff may be 50??
+                if d >= 0 and d < 75:#diff:
                     diff = d
                     closest_light = light
                     line_wp_idx = temp_wp_idx
