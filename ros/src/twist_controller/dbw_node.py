@@ -57,11 +57,6 @@ class DBWNode(object):
         self.controller = Controller(vehicle_mass, fuel_capacity, brake_deadband, decel_limit,
                                     accel_limit, wheel_radius, wheel_base, steer_ratio, max_lat_accel, max_steer_angle)
 
-        # TODO: Subscribe to all the topics you need to
-        rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
-        rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cb)
-        rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb)
-
         self.current_vel = None
         self.current_angular_vel = None
         self.linear_vel = None
@@ -71,6 +66,11 @@ class DBWNode(object):
         self.steering = 0
         self.brake = 0
 
+        # TODO: Subscribe to all the topics you need to
+        rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
+        rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cb)
+        rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb)
+        
         self.loop()
 
     def loop(self):
